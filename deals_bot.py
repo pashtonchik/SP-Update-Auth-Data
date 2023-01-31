@@ -52,6 +52,7 @@ async def get_google_auth(message: types.Message):
         print(e)
 
 
+
 @dp.message_handler(text=['Обновить данные авторизации'])
 async def update_auth_data_binance(message: types.Message):
     try:

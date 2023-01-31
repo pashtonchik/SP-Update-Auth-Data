@@ -1,8 +1,6 @@
 import asyncio
 import json
-
 import requests
-
 from loader import bot
 from settings import *
 

@@ -10,7 +10,7 @@ async def check_validity():
         try:
             req_get_auth = requests.get(URL_DJANGO + 'get/binance/cookie/')
             req_bd_data = req_get_auth.json()
-            cookie = req_bd_data['cookie_binance'].encode('UTF-8')
+            cookie = req_bd_data['cookie_binance'].encode('utf-8')
             headers = {
                 'cookie': cookie,
                 'csrftoken': req_bd_data['csrf_binance'],
@@ -30,7 +30,7 @@ async def check_validity():
                     except Exception as e:
                         print(e)
 
-            await asyncio.sleep(30)
         except Exception as e:
             print(e)
+        await asyncio.sleep(30)
 

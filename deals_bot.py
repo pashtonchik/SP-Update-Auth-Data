@@ -7,6 +7,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import StatesGroup, State
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils import executor
 
 from check_validity import check_validity
@@ -15,9 +16,23 @@ from main_kb import kb_main
 from settings import URL_DJANGO
 
 
+def create_accs_kb(accounts):
+    kb_accounts = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardMarkup(text=i, callback_data=i)
+            ]
+            for i in accounts
+        ],
+        resize_keyboard=True
+    )
+    return kb_accounts
+
+
 class PostCookie(StatesGroup):
     input_cookies = State()
     input_csrf = State()
+    choice_account = State()
 
 
 @dp.message_handler(commands=['start'])
@@ -52,8 +67,20 @@ async def get_google_auth(message: types.Message):
         print(e)
 
 
-
 @dp.message_handler(text=['Обновить данные авторизации'])
+async def update_auth_data_binance(message: types.Message):
+    try:
+        accounts_req = requests.get(URL_DJANGO + 'get/binance/accounts/')
+        if accounts_req.status_code == 200:
+            await message.answer('Введите новые cookie', reply_markup=create_accs_kb(accounts_req.json()))
+            await PostCookie.choice_account.set()
+        else:
+            await message.answer('Ошибка на сервере, повторите запрос позже', reply_markup=kb_main())
+    except Exception as e:
+        print(e)
+
+
+@dp.callback_query_handlers(state=PostCookie.choice_account)
 async def update_auth_data_binance(message: types.Message):
     try:
         await message.answer('Введите новые cookie', reply_markup=kb_main())
@@ -100,7 +127,7 @@ async def set_default_commands(dp):
 
 async def on_startup(dispatcher):
     await set_default_commands(dispatcher)
-    asyncio.create_task(check_validity())
+    #asyncio.create_task(check_validity())
 
 
 if __name__ == "__main__":

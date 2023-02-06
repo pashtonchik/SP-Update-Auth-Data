@@ -80,11 +80,13 @@ async def update_auth_data_binance(message: types.Message):
         print(e)
 
 
-@dp.callback_query_handlers(state=PostCookie.choice_account)
-async def update_auth_data_binance(message: types.Message):
+@dp.callback_query_handler(state=PostCookie.choice_account)
+async def update_auth_data_binance(call: types.CallbackQuery, state=FSMContext):
     try:
-        await message.answer('Введите новые cookie', reply_markup=kb_main())
+        await call.message.answer('Введите новые cookie', reply_markup=kb_main())
+        await call.message.delete()
         await PostCookie.input_cookies.set()
+        await state.update_data(account=call.data)
     except Exception as e:
         print(e)
 
@@ -92,9 +94,10 @@ async def update_auth_data_binance(message: types.Message):
 @dp.message_handler(state=PostCookie.input_cookies)
 async def get_cookie(message: types.Message, state=FSMContext):
     try:
+        state_data = await state.get_data()
         await message.answer('Cookie приняты, введите csrf token', reply_markup=kb_main())
         await PostCookie.input_csrf.set()
-        await state.update_data(cookie=message.text)
+        await state.update_data(cookie=message.text, account=state_data['account'])
     except Exception as e:
         print(e)
 
@@ -103,8 +106,11 @@ async def get_cookie(message: types.Message, state=FSMContext):
 async def req_with_auth_data(message: types.Message, state=FSMContext):
     try:
         state_data = await state.get_data()
+        print(state_data)
         cookies = state_data['cookie']
+        account = state_data['account']
         data_req = {
+            'name': account,
             'cookie_binance': cookies,
             'csrf_binance': message.text
         }
@@ -127,7 +133,7 @@ async def set_default_commands(dp):
 
 async def on_startup(dispatcher):
     await set_default_commands(dispatcher)
-    #asyncio.create_task(check_validity())
+    asyncio.create_task(check_validity())
 
 
 if __name__ == "__main__":

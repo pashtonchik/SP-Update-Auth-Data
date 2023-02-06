@@ -29,10 +29,27 @@ def create_accs_kb(accounts):
     return kb_accounts
 
 
+def create_auths_kb(accounts):
+    kb_accounts = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardMarkup(text=i['name'], callback_data=i['google_token'])
+            ]
+            for i in accounts
+        ],
+        resize_keyboard=True
+    )
+    return kb_accounts
+
+
 class PostCookie(StatesGroup):
     input_cookies = State()
     input_csrf = State()
     choice_account = State()
+
+
+class GoogleToken(StatesGroup):
+    choice_google = State()
 
 
 @dp.message_handler(commands=['start'])
@@ -60,11 +77,27 @@ async def get_info(message: types.Message):
 @dp.message_handler(text=['Получить Google Authenticator'])
 async def get_google_auth(message: types.Message):
     try:
-        totp = pyotp.TOTP('IJIHJA5EAC5KBGST')
-        google_token_now = totp.now()
-        await message.answer(f'`{google_token_now}`', reply_markup=kb_main(), parse_mode='Markdown')
+        accounts_req = requests.get(URL_DJANGO + 'get/google/auths/')
+        if accounts_req.status_code == 200:
+            await message.answer('Выберите акканунт:', reply_markup=create_auths_kb(accounts_req.json()))
+            await GoogleToken.choice_google.set()
+        else:
+            await message.answer('Ошибка на сервере, повторите запрос позже', reply_markup=kb_main())
     except Exception as e:
         print(e)
+
+
+@dp.callback_query_handler(state=GoogleToken.choice_google)
+async def get_google_auth(call: types.CallbackQuery, state=FSMContext):
+    try:
+        totp = pyotp.TOTP(call.data)
+        google_token_now = totp.now()
+        await call.message.delete()
+        await call.message.answer(f'`{google_token_now}`', reply_markup=kb_main(), parse_mode='Markdown')
+        await state.finish()
+    except Exception as e:
+        print(e)
+
 
 
 @dp.message_handler(text=['Обновить данные авторизации'])
@@ -72,7 +105,7 @@ async def update_auth_data_binance(message: types.Message):
     try:
         accounts_req = requests.get(URL_DJANGO + 'get/binance/accounts/')
         if accounts_req.status_code == 200:
-            await message.answer('Введите новые cookie', reply_markup=create_accs_kb(accounts_req.json()))
+            await message.answer('Выберите аккаунт:', reply_markup=create_accs_kb(accounts_req.json()))
             await PostCookie.choice_account.set()
         else:
             await message.answer('Ошибка на сервере, повторите запрос позже', reply_markup=kb_main())
